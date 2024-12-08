@@ -3,7 +3,7 @@
 async function getCryptoTimeSeries(symbol) {
     // IT: Costruisce l'URL dell'endpoint Binance. Qui utilizziamo l'intervallo a 1 giorno.
     // EN: Construct the Binance API URL endpoint. We use a 1-day interval here.
-    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}USDT&interval=1d`;
+    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}USDT&interval=5m`;
     try {
         // IT: Effettua la richiesta fetch per ottenere i dati.
         // EN: Make a fetch request to retrieve the data.
@@ -13,7 +13,7 @@ async function getCryptoTimeSeries(symbol) {
         // IT: Mappa i dati restituendo un array di oggetti con i valori necessari.
         // EN: Map the data to return an array of objects with the required values.
         const timeSeriesArray = data.map(entry => ({
-            date: new Date(entry[0]).toISOString(),  // IT: Converte il timestamp in una data ISO // EN: Convert the timestamp to an ISO date string
+            date: entry[0],  // IT: Converte il timestamp in una data ISO // EN: Convert the timestamp to an ISO date string
             open: parseFloat(entry[1]),
             high: parseFloat(entry[2]),
             low: parseFloat(entry[3]),
@@ -26,7 +26,7 @@ async function getCryptoTimeSeries(symbol) {
         // IT: Calcola la SMA (Simple Moving Average) con periodo 5.
         // EN: Calculate the SMA (Simple Moving Average) with a period of 5.
         const smaArray = SMA.calculate({
-            period: 5, 
+            period: 14, 
             values: timeSeriesArray.map(entry => entry.close)
         });
 
@@ -40,8 +40,8 @@ async function getCryptoTimeSeries(symbol) {
         // IT: Assegna i valori SMA a partire dal 5° elemento.
         // EN: Assign the SMA values starting from the 5th element.
         timeSeriesArray.forEach((entry, index) => {
-            if (index >= 4) {
-                entry.sma = smaArray[index - 4];
+            if (index >= 13) {
+                entry.sma = smaArray[index - 13];
             }
         });
 
@@ -69,14 +69,14 @@ async function trainAndPredictLSTM(timeSeriesData) {
     // IT: Normalizza i dati dividendo ciascun valore per il massimo dell'intero set.
     // EN: Normalize the data by dividing each value by the maximum value of the entire set.
     const normalizedData = timeSeriesData.map(entry => ({
-        date: entry.date,
+        date: new Date(entry.date),
         open: entry.open / Math.max(...timeSeriesData.map(e => e.open)),
         high: entry.high / Math.max(...timeSeriesData.map(e => e.high)),
         low: entry.low / Math.max(...timeSeriesData.map(e => e.low)),
         close: entry.close / Math.max(...timeSeriesData.map(e => e.close)),
-        sma: entry.sma / Math.max(...timeSeriesData.map(e => e.sma)),
-        volume: entry.volume / Math.max(...timeSeriesData.map(e => e.volume)),
-        rsi: entry.rsi / Math.max(...timeSeriesData.map(e => e.rsi))
+        //sma: entry.sma / Math.max(...timeSeriesData.map(e => e.sma)),
+        //volume: entry.volume / Math.max(...timeSeriesData.map(e => e.volume)),
+        //rsi: entry.rsi / Math.max(...timeSeriesData.map(e => e.rsi))
     }));
 
     console.log(Math.max(...timeSeriesData.map(e => e.rsi))); // IT: Mostra il massimo RSI // EN: Log max RSI
@@ -216,6 +216,7 @@ async function trainAndPredictLSTM(timeSeriesData) {
         name: 'Predizioni' // IT: Predictions // EN: Predictions
     };
 
+
     // IT: Calcola una predizione futura aggiuntiva oltre i dati di testing.
     // EN: Calculate one additional future prediction beyond the test data.
     let lastSequence = testingData.slice(-inputSize).map(e => 
@@ -225,11 +226,17 @@ async function trainAndPredictLSTM(timeSeriesData) {
     const prediction = model.predict(inputTensor).dataSync()[0];
     const futurePrediction = prediction * Math.max(...timeSeriesData.map(e => e.close));
 
+    // IT: Calcola la differenza percentuale tra l'ultima predizione denormalizzata e la predizione futura.
+    // EN: Calculate the percentage difference between the last denormalized prediction and the future prediction.
+    const lastDenormalizedPrediction = denormalizedPredictions[denormalizedPredictions.length - 1];
+    const percentageDifference = ((futurePrediction - lastDenormalizedPrediction) / lastDenormalizedPrediction) * 100;
+
+    console.log(`Differenza percentuale predetta: ${percentageDifference.toFixed(2)}%`); // IT: Mostra la differenza percentuale // EN: Log the percentage difference
+
     // IT: Calcola la data futura (il giorno successivo all'ultimo dato di test).
     // EN: Compute the future date (one day after the last test date).
     const lastDate = new Date(testDates[testDates.length - 1]);
-    lastDate.setDate(lastDate.getDate() + 1);
-    const futureDate = lastDate.toISOString();
+    const futureDate = lastDate;
 
     const futureTrace = {
         x: [futureDate],
