@@ -26,12 +26,22 @@ async function fetchCryptoTimeSeries(symbol, interval) {
             close: parseFloat(entry[4]),
             volume: parseFloat(entry[5]),
             rsi: 0,
-            sma: 0
+            smaFast: 0,
+            smaSlow:0,
+            smaSignal:0
         }));
 
-        // Calcolo SMA (periodo 14)
-        const smaArray = SMA.calculate({
-            period: 14,
+        // Calcolo SMA
+        const smaFastArray = SMA.calculate({
+            period: 5,
+            values: timeSeriesArray.map(entry => entry.close)
+        });
+        const smaSlowArray = SMA.calculate({
+            period: 8,
+            values: timeSeriesArray.map(entry => entry.close)
+        });
+        const smaSignalArray = SMA.calculate({
+            period: 3,
             values: timeSeriesArray.map(entry => entry.close)
         });
 
@@ -42,8 +52,14 @@ async function fetchCryptoTimeSeries(symbol, interval) {
         });
 
         timeSeriesArray.forEach((entry, index) => {
-            if (index >= 13) {
-                entry.sma = smaArray[index - 13];
+            if (index >= 4) {
+                entry.smaFast = smaFastArray[index - 4];
+            }
+            if (index >= 7) {
+                entry.smaSlow = smaSlowArray[index - 7];
+            }
+            if (index >= 2) {
+                entry.smaSignal = smaSignalArray[index - 2];
             }
         });
 
@@ -62,17 +78,16 @@ async function fetchCryptoTimeSeries(symbol, interval) {
 
 // Funzione per addestrare il modello e generare previsioni
 async function trainAndPredictLSTM(timeSeriesData) {
-    const filteredData = timeSeriesData.filter(entry => !isNaN(entry.sma) && !isNaN(entry.rsi));
+    const filteredData = timeSeriesData;
 
-    if (filteredData.length < 30) {
-        throw new Error('Dati insufficienti per l\'addestramento.');
-    }
 
     const maxOpen = Math.max(...filteredData.map(e => e.open));
     const maxHigh = Math.max(...filteredData.map(e => e.high));
     const maxLow = Math.max(...filteredData.map(e => e.low));
     const maxClose = Math.max(...filteredData.map(e => e.close));
-    const maxSMA = Math.max(...filteredData.map(e => e.sma));
+    const maxSMAFast = Math.max(...filteredData.map(e => e.smaFast));
+    const maxSMASlow = Math.max(...filteredData.map(e => e.smaSlow));
+    const maxSMASignal = Math.max(...filteredData.map(e => e.smaSignal));
     const maxVolume = Math.max(...filteredData.map(e => e.volume));
     const maxRSI = Math.max(...filteredData.map(e => e.rsi));
 
@@ -82,7 +97,9 @@ async function trainAndPredictLSTM(timeSeriesData) {
         high: entry.high / maxHigh,
         low: entry.low / maxLow,
         close: entry.close / maxClose,
-        sma: (maxSMA === 0 ? 0 : entry.sma / maxSMA),
+        smaFast: (maxSMAFast === 0 ? 0 : entry.smaFast / maxSMAFast),
+        smaSlow: (maxSMASlow === 0 ? 0 : entry.smaSlow / maxSMASlow),
+        smaSignal: (maxSMASignal === 0 ? 0 : entry.smaSignal / maxSMASignal),
         volume: entry.volume / maxVolume,
         rsi: (maxRSI === 0 ? 0 : entry.rsi / maxRSI)
     }));
@@ -107,10 +124,25 @@ async function trainAndPredictLSTM(timeSeriesData) {
 
     const model = tf.sequential();
     model.add(tf.layers.lstm({
-        units: 200,
+        units: 512,
         inputShape: [inputSize, featureCount],
-        returnSequences: false
+        returnSequences: true,
+        dropout: 0.2,
+        recurrentDropout: 0.2
     }));
+    model.add(tf.layers.lstm({
+        units: 256,
+        returnSequences: true,
+        dropout: 0.2,
+        recurrentDropout: 0.2
+    }));
+    model.add(tf.layers.lstm({
+        units: 128,
+        returnSequences: false,
+        dropout: 0.2,
+        recurrentDropout: 0.2
+    }));
+    model.add(tf.layers.dense({ units: 64, activation: 'relu' }));
     model.add(tf.layers.dense({ units: 1 }));
     model.compile({ optimizer: 'adam', loss: 'meanSquaredError' });
 
