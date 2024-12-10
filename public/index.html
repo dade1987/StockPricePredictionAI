@@ -8,36 +8,33 @@
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <!-- Tailwind CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <!-- Vue.js -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
 </head>
 <body class="bg-gray-100 text-gray-800">
-<div class="container mx-auto p-4">
+<div id="app" class="container mx-auto p-4">
     <h1 class="text-3xl font-bold mb-4">Previsioni Criptovalute</h1>
     <div class="mb-6 space-y-4">
 
         <div>
             <label for="symbol" class="block font-bold mb-1">Seleziona Criptovaluta</label>
-            <select id="symbol" class="border p-2 rounded">
-                <option value="BTC" selected>Bitcoin (BTC)</option>
-                <option value="ETH">Ethereum (ETH)</option>
-                <option value="DOGE" >Dogecoin (DOGE)</option>
-                <option value="XRP">XRP (XRP)</option>
-                <option value="ADA">Cardano (ADA)</option>
+            <select v-model="selectedSymbol" class="border p-2 rounded">
+                <option v-for="crypto in cryptocurrencies" :value="crypto.value" :key="crypto.value">
+                    {{ crypto.name }}
+                </option>
             </select>
         </div>
 
         <div>
             <label for="interval" class="block font-bold mb-1">Seleziona Timeframe</label>
-            <select id="interval" class="border p-2 rounded">
-                <option value="1m">1m</option>
-                <option value="5m">5m</option>
-                <option value="15m">15m</option>
-                <option value="1h">1h</option>
-                <option value="4h">4h</option>
-                <option value="1d" selected>1d</option>
+            <select v-model="selectedInterval" class="border p-2 rounded">
+                <option v-for="interval in intervals" :value="interval.value" :key="interval.value">
+                    {{ interval.label }}
+                </option>
             </select>
         </div>
 
-        <button id="updateBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        <button @click="updatePredictions" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
             Aggiorna Previsioni
         </button>
     </div>
@@ -47,6 +44,115 @@
     <div id="testChart" class="mb-8"></div>
 </div>
 
-<script src="script.js"></script>
+<script>
+    new Vue({
+        el: '#app',
+        data: {
+            selectedSymbol: 'BTC',
+            selectedInterval: '1d',
+            cryptocurrencies: [
+                { value: 'BTC', name: 'Bitcoin (BTC)' },
+                { value: 'ETH', name: 'Ethereum (ETH)' },
+                { value: 'DOGE', name: 'Dogecoin (DOGE)' },
+                { value: 'XRP', name: 'XRP (XRP)' },
+                { value: 'ADA', name: 'Cardano (ADA)' }
+            ],
+            intervals: [
+                { value: '1m', label: '1m' },
+                { value: '5m', label: '5m' },
+                { value: '15m', label: '15m' },
+                { value: '1h', label: '1h' },
+                { value: '4h', label: '4h' },
+                { value: '1d', label: '1d' }
+            ]
+        },
+        methods: {
+            async updatePredictions() {
+                const results = await this.fetchResults(this.selectedSymbol, this.selectedInterval);
+                this.plotResults(results);
+            },
+            async fetchResults(symbol, interval) {
+                const response = await fetch(`/api/results?symbol=${symbol}&interval=${interval}`);
+                const results = await response.json();
+                return results;
+            },
+            plotResults(results) {
+                // Grafico storico
+                const historicalTrace = {
+                    x: results.historical.map(d => new Date(d.date)),
+                    y: results.historical.map(d => d.close),
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    marker: { color: 'blue' },
+                    name: 'Prezzo di Chiusura Storico'
+                };
+
+                const layoutHistorical = {
+                    title: 'Andamento Prezzo di Chiusura Storico',
+                    xaxis: { title: 'Data' },
+                    yaxis: { title: 'Prezzo (USD)' }
+                };
+                Plotly.newPlot('cryptoChart', [historicalTrace], layoutHistorical);
+
+                // Grafico Errore di Addestramento
+                const lossTrace = {
+                    x: results.lossHistory.map((_, i) => i+1),
+                    y: results.lossHistory,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    marker: { color: 'green' },
+                    name: 'Errore di Addestramento'
+                };
+
+                const lossLayout = {
+                    title: 'Andamento Errore di Addestramento',
+                    xaxis: { title: 'Epoca' },
+                    yaxis: { title: 'Loss' }
+                };
+                Plotly.newPlot('lossChart', [lossTrace], lossLayout);
+
+                // Grafico Test + Predizioni
+                const testTrace = {
+                    x: results.testDates.map(d => new Date(d)),
+                    y: results.testActual,
+                    type: 'scatter',
+                    mode: 'lines+markers',
+                    marker: { color: 'blue' },
+                    name: 'Dati di Testing'
+                };
+
+                const predictionTrace = {
+                    x: results.testDates.map(d => new Date(d)),
+                    y: results.testPredictions,
+                    type: 'scatter',
+                    mode: 'markers',
+                    marker: { color: 'red', size: 8 },
+                    name: 'Predizioni'
+                };
+
+                const futureTrace = {
+                    x: [new Date(results.futureDate)],
+                    y: [results.futurePrediction],
+                    type: 'scatter',
+                    mode: 'markers',
+                    marker: { color: 'orange', size: 10 },
+                    name: 'Predizione Futura'
+                };
+
+                const testLayout = {
+                    title: 'Predizioni sui Dati di Testing e Future',
+                    xaxis: { title: 'Data' },
+                    yaxis: { title: 'Prezzo (USD)' },
+                    showlegend: true,
+                    legend: { x: 0, y: 1.1, orientation: 'h' }
+                };
+                Plotly.newPlot('testChart', [testTrace, predictionTrace, futureTrace], testLayout);
+            }
+        },
+        mounted() {
+            this.updatePredictions();
+        }
+    });
+</script>
 </body>
 </html>

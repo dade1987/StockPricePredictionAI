@@ -97,9 +97,9 @@ async function trainAndPredictLSTM(timeSeriesData) {
         high: entry.high / maxHigh,
         low: entry.low / maxLow,
         close: entry.close / maxClose,
-        smaFast: (maxSMAFast === 0 ? 0 : entry.smaFast / maxSMAFast),
-        smaSlow: (maxSMASlow === 0 ? 0 : entry.smaSlow / maxSMASlow),
-        smaSignal: (maxSMASignal === 0 ? 0 : entry.smaSignal / maxSMASignal),
+        //smaFast: (maxSMAFast === 0 ? 0 : entry.smaFast / maxSMAFast),
+        //smaSlow: (maxSMASlow === 0 ? 0 : entry.smaSlow / maxSMASlow),
+        //smaSignal: (maxSMASignal === 0 ? 0 : entry.smaSignal / maxSMASignal),
         volume: entry.volume / maxVolume,
         rsi: (maxRSI === 0 ? 0 : entry.rsi / maxRSI)
     }));
@@ -124,25 +124,14 @@ async function trainAndPredictLSTM(timeSeriesData) {
 
     const model = tf.sequential();
     model.add(tf.layers.lstm({
-        units: 512,
-        inputShape: [inputSize, featureCount],
+        units: 100,
         returnSequences: true,
-        dropout: 0.2,
-        recurrentDropout: 0.2
+        inputShape: [inputSize, featureCount]
     }));
     model.add(tf.layers.lstm({
-        units: 256,
-        returnSequences: true,
-        dropout: 0.2,
-        recurrentDropout: 0.2
+        units: 50,
+        returnSequences: false
     }));
-    model.add(tf.layers.lstm({
-        units: 128,
-        returnSequences: false,
-        dropout: 0.2,
-        recurrentDropout: 0.2
-    }));
-    model.add(tf.layers.dense({ units: 64, activation: 'relu' }));
     model.add(tf.layers.dense({ units: 1 }));
     model.compile({ optimizer: 'adam', loss: 'meanSquaredError' });
 
@@ -150,7 +139,7 @@ async function trainAndPredictLSTM(timeSeriesData) {
     const ys = tf.tensor2d(trainLabels, [trainLabels.length, 1]);
 
     const history = await model.fit(xs, ys, {
-        epochs: 15,
+        epochs: 50,
         batchSize: 32,
         verbose: 0
     });
