@@ -4,8 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Cripto Prediction</title>
-    <!-- Plotly.js -->
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- Apache ECharts -->
+    <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
     <!-- Tailwind CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <!-- Vue.js -->
@@ -39,9 +39,9 @@
         </button>
     </div>
 
-    <div id="cryptoChart" class="mb-8"></div>
-    <div id="lossChart" class="mb-8"></div>
-    <div id="testChart" class="mb-8"></div>
+    <div id="cryptoChart" class="mb-8" style="height: 400px;"></div>
+    <div id="lossChart" class="mb-8" style="height: 400px;"></div>
+    <div id="testChart" class="mb-8" style="height: 400px;"></div>
 </div>
 
 <script>
@@ -78,75 +78,96 @@
             },
             plotResults(results) {
                 // Grafico storico
-                const historicalTrace = {
-                    x: results.historical.map(d => new Date(d.date)),
-                    y: results.historical.map(d => d.close),
-                    type: 'scatter',
-                    mode: 'lines+markers',
-                    marker: { color: 'blue' },
-                    name: 'Prezzo di Chiusura Storico'
+                const historicalChart = echarts.init(document.getElementById('cryptoChart'));
+                const historicalOption = {
+                    title: {
+                        text: 'Andamento Prezzo di Chiusura Storico'
+                    },
+                    tooltip: {
+                        trigger: 'axis'
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: results.historical.map(d => new Date(d.date).toLocaleDateString())
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'Prezzo (USD)'
+                    },
+                    series: [{
+                        data: results.historical.map(d => d.close),
+                        type: 'line',
+                        name: 'Prezzo di Chiusura Storico',
+                        itemStyle: { color: 'blue' }
+                    }]
                 };
-
-                const layoutHistorical = {
-                    title: 'Andamento Prezzo di Chiusura Storico',
-                    xaxis: { title: 'Data' },
-                    yaxis: { title: 'Prezzo (USD)' }
-                };
-                Plotly.newPlot('cryptoChart', [historicalTrace], layoutHistorical);
+                historicalChart.setOption(historicalOption);
 
                 // Grafico Errore di Addestramento
-                const lossTrace = {
-                    x: results.lossHistory.map((_, i) => i+1),
-                    y: results.lossHistory,
-                    type: 'scatter',
-                    mode: 'lines+markers',
-                    marker: { color: 'green' },
-                    name: 'Errore di Addestramento'
+                const lossChart = echarts.init(document.getElementById('lossChart'));
+                const lossOption = {
+                    title: {
+                        text: 'Andamento Errore di Addestramento'
+                    },
+                    tooltip: {
+                        trigger: 'axis'
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: results.lossHistory.map((_, i) => i + 1)
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'Loss'
+                    },
+                    series: [{
+                        data: results.lossHistory,
+                        type: 'line',
+                        name: 'Errore di Addestramento',
+                        itemStyle: { color: 'green' }
+                    }]
                 };
-
-                const lossLayout = {
-                    title: 'Andamento Errore di Addestramento',
-                    xaxis: { title: 'Epoca' },
-                    yaxis: { title: 'Loss' }
-                };
-                Plotly.newPlot('lossChart', [lossTrace], lossLayout);
+                lossChart.setOption(lossOption);
 
                 // Grafico Test + Predizioni
-                const testTrace = {
-                    x: results.testDates.map(d => new Date(d)),
-                    y: results.testActual,
-                    type: 'scatter',
-                    mode: 'lines+markers',
-                    marker: { color: 'blue' },
-                    name: 'Dati di Testing'
+                const testChart = echarts.init(document.getElementById('testChart'));
+                const testOption = {
+                    title: {
+                        text: 'Predizioni sui Dati di Testing e Future'
+                    },
+                    tooltip: {
+                        trigger: 'axis'
+                    },
+                    xAxis: {
+                        type: 'category',
+                        data: [...results.testDates.map(d => new Date(d).toLocaleDateString()), 'Futuro']
+                    },
+                    yAxis: {
+                        type: 'value',
+                        name: 'Prezzo (USD)'
+                    },
+                    series: [
+                        {
+                            data: results.testActual,
+                            type: 'line',
+                            name: 'Dati di Testing',
+                            itemStyle: { color: 'blue' }
+                        },
+                        {
+                            data: results.testPredictions,
+                            type: 'scatter',
+                            name: 'Predizioni',
+                            itemStyle: { color: 'red' }
+                        },
+                        {
+                            data: [...Array(results.testPredictions.length).fill(null), results.futurePrediction],
+                            type: 'scatter',
+                            name: 'Predizione Futura',
+                            itemStyle: { color: 'orange' }
+                        }
+                    ]
                 };
-
-                const predictionTrace = {
-                    x: results.testDates.map(d => new Date(d)),
-                    y: results.testPredictions,
-                    type: 'scatter',
-                    mode: 'markers',
-                    marker: { color: 'red', size: 8 },
-                    name: 'Predizioni'
-                };
-
-                const futureTrace = {
-                    x: [new Date(results.futureDate)],
-                    y: [results.futurePrediction],
-                    type: 'scatter',
-                    mode: 'markers',
-                    marker: { color: 'orange', size: 10 },
-                    name: 'Predizione Futura'
-                };
-
-                const testLayout = {
-                    title: 'Predizioni sui Dati di Testing e Future',
-                    xaxis: { title: 'Data' },
-                    yaxis: { title: 'Prezzo (USD)' },
-                    showlegend: true,
-                    legend: { x: 0, y: 1.1, orientation: 'h' }
-                };
-                Plotly.newPlot('testChart', [testTrace, predictionTrace, futureTrace], testLayout);
+                testChart.setOption(testOption);
             }
         },
         mounted() {

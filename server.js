@@ -97,6 +97,7 @@ async function trainAndPredictLSTM(timeSeriesData) {
         high: entry.high / maxHigh,
         low: entry.low / maxLow,
         close: entry.close / maxClose,
+        //escludere. confondono le previsioni
         //smaFast: (maxSMAFast === 0 ? 0 : entry.smaFast / maxSMAFast),
         //smaSlow: (maxSMASlow === 0 ? 0 : entry.smaSlow / maxSMASlow),
         //smaSignal: (maxSMASignal === 0 ? 0 : entry.smaSignal / maxSMASignal),
@@ -109,7 +110,7 @@ async function trainAndPredictLSTM(timeSeriesData) {
     const trainingData = normalizedData.slice(0, splitIndex);
     const testingData = normalizedData.slice(splitIndex);
 
-    const inputSize = 7;
+    const inputSize = 8;
     const trainInputs = [];
     const trainLabels = [];
 
