@@ -1,13 +1,12 @@
 const express = require('express');
 const fetch = require('node-fetch');
 const { RSI, SMA } = require('technicalindicators');
-const tf = require('@tensorflow/tfjs-node'); // TensorFlow.js per Node
+const tf = require('@tensorflow/tfjs-node');
 const path = require('path');
 
-// Parametri
-const SYMBOL = 'DOGE'; 
-const INTERVAL = '5m';
-const PORT = 3000;
+// Parametri di default
+const DEFAULT_SYMBOL = 'BTC';
+const DEFAULT_INTERVAL = '1d';
 
 const app = express();
 app.use(express.static(path.join(__dirname, 'public')));
@@ -63,7 +62,6 @@ async function fetchCryptoTimeSeries(symbol, interval) {
 
 // Funzione per addestrare il modello e generare previsioni
 async function trainAndPredictLSTM(timeSeriesData) {
-    // Rimuoviamo eventuali righe incomplete (ad es. senza RSI o SMA)
     const filteredData = timeSeriesData.filter(entry => !isNaN(entry.sma) && !isNaN(entry.rsi));
 
     if (filteredData.length < 30) {
@@ -157,46 +155,36 @@ async function trainAndPredictLSTM(timeSeriesData) {
     const lastDenormalizedPrediction = denormalizedPredictions[denormalizedPredictions.length - 1];
     const percentageDifference = ((futurePrediction - lastDenormalizedPrediction) / lastDenormalizedPrediction) * 100;
 
-    // Risultati da inviare al frontend
     return {
-        // Dati storici (per grafico principale)
         historical: filteredData.map(d => ({
             date: d.date,
             close: d.close * maxClose
         })),
-        // Dati di training (non necessari al frontend se non per debug)
-        // Dati di test e predizioni
         testDates: testDates,
         testActual: testActual,
         testPredictions: denormalizedPredictions,
-        futureDate: testDates[testDates.length - 1], 
+        futureDate: testDates[testDates.length - 1],
         futurePrediction: futurePrediction,
         percentageDifference: percentageDifference,
-        lossHistory: history.history.loss // trend della loss
+        lossHistory: history.history.loss
     };
 }
 
-let cachedResults = null;
-let lastFetchTime = 0;
-
-// Endpoint per fornire i dati al frontend
+// Endpoint per fornire i dati al frontend con parametri
 app.get('/api/results', async (req, res) => {
+    const symbol = req.query.symbol || DEFAULT_SYMBOL;
+    const interval = req.query.interval || DEFAULT_INTERVAL;
     try {
-        const now = Date.now();
-        // Possiamo implementare una cache per non ricalcolare tutto ogni volta
-        if (!cachedResults || (now - lastFetchTime) > 5 * 60 * 1000) {
-            const data = await fetchCryptoTimeSeries(SYMBOL, INTERVAL);
-            const results = await trainAndPredictLSTM(data);
-            cachedResults = results;
-            lastFetchTime = now;
-        }
-        res.json(cachedResults);
+        const data = await fetchCryptoTimeSeries(symbol, interval);
+        const results = await trainAndPredictLSTM(data);
+        res.json(results);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: 'Errore interno del server' });
     }
 });
 
+const PORT = 3000;
 app.listen(PORT, () => {
     console.log(`Server in ascolto sulla porta ${PORT}`);
 });

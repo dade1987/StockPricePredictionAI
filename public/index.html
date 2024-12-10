@@ -4,21 +4,49 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Cripto Prediction</title>
-    <!-- Libreria Plotly.js da CDN -->
+    <!-- Plotly.js -->
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-    <!-- Tailwind CSS da CDN -->
+    <!-- Tailwind CSS -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100 text-gray-800">
-    <div class="container mx-auto p-4">
-        <h1 class="text-3xl font-bold mb-4">Benvenuto nella pagina di previsione delle criptovalute</h1>
-        <p class="mb-6">Questa pagina mostra i risultati calcolati dal backend.</p>
+<div class="container mx-auto p-4">
+    <h1 class="text-3xl font-bold mb-4">Previsioni Criptovalute</h1>
+    <div class="mb-6 space-y-4">
 
-        <div id="cryptoChart" class="mb-8"></div>
-        <div id="lossChart" class="mb-8"></div>
-        <div id="testChart" class="mb-8"></div>
+        <div>
+            <label for="symbol" class="block font-bold mb-1">Seleziona Criptovaluta</label>
+            <select id="symbol" class="border p-2 rounded">
+                <option value="BTC" selected>Bitcoin (BTC)</option>
+                <option value="ETH">Ethereum (ETH)</option>
+                <option value="DOGE" >Dogecoin (DOGE)</option>
+                <option value="XRP">XRP (XRP)</option>
+                <option value="ADA">Cardano (ADA)</option>
+            </select>
+        </div>
+
+        <div>
+            <label for="interval" class="block font-bold mb-1">Seleziona Timeframe</label>
+            <select id="interval" class="border p-2 rounded">
+                <option value="1m">1m</option>
+                <option value="5m" >5m</option>
+                <option value="15m">15m</option>
+                <option value="1h">1h</option>
+                <option value="4h">4h</option>
+                <option value="1d" selected>1d</option>
+            </select>
+        </div>
+
+        <button id="updateBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Aggiorna Previsioni
+        </button>
     </div>
 
-    <script src="script.js"></script>
+    <div id="cryptoChart" class="mb-8"></div>
+    <div id="lossChart" class="mb-8"></div>
+    <div id="testChart" class="mb-8"></div>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>

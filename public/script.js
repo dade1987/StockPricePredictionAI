@@ -1,10 +1,10 @@
-async function fetchResults() {
-    const response = await fetch('/api/results');
+async function fetchResults(symbol, interval) {
+    const response = await fetch(`/api/results?symbol=${symbol}&interval=${interval}`);
     const results = await response.json();
     return results;
 }
 
-fetchResults().then(results => {
+function plotResults(results) {
     // Grafico storico
     const historicalTrace = {
         x: results.historical.map(d => new Date(d.date)),
@@ -20,7 +20,6 @@ fetchResults().then(results => {
         xaxis: { title: 'Data' },
         yaxis: { title: 'Prezzo (USD)' }
     };
-
     Plotly.newPlot('cryptoChart', [historicalTrace], layoutHistorical);
 
     // Grafico Errore di Addestramento
@@ -38,7 +37,6 @@ fetchResults().then(results => {
         xaxis: { title: 'Epoca' },
         yaxis: { title: 'Loss' }
     };
-
     Plotly.newPlot('lossChart', [lossTrace], lossLayout);
 
     // Grafico Test + Predizioni
@@ -76,6 +74,20 @@ fetchResults().then(results => {
         showlegend: true,
         legend: { x: 0, y: 1.1, orientation: 'h' }
     };
-
     Plotly.newPlot('testChart', [testTrace, predictionTrace, futureTrace], testLayout);
+}
+
+document.getElementById('updateBtn').addEventListener('click', async () => {
+    const symbol = document.getElementById('symbol').value;
+    const interval = document.getElementById('interval').value;
+    const results = await fetchResults(symbol, interval);
+    plotResults(results);
+});
+
+// Carica dati di default all'avvio (es: DOGE, 5m)
+window.addEventListener('DOMContentLoaded', async () => {
+    const symbol = document.getElementById('symbol').value;
+    const interval = document.getElementById('interval').value;
+    const results = await fetchResults(symbol, interval);
+    plotResults(results);
 });
